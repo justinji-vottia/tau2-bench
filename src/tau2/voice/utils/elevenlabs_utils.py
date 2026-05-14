@@ -7,7 +7,10 @@ from elevenlabs import ElevenLabs
 from loguru import logger
 
 from tau2.data_model.audio import AudioData
-from tau2.data_model.voice import ElevenLabsTTSConfig
+from tau2.data_model.voice import (
+    DEFAULT_ELEVEN_LAB_AUDIO_FORMAT,
+    ElevenLabsTTSConfig,
+)
 
 
 def make_elevenlabs_output_format(codec: str, sample_rate: int, bitrate: int) -> str:
@@ -62,6 +65,36 @@ def tts_elevenlabs(
     if not api_key:
         raise ValueError("ELEVENLABS_API_KEY not found in config or environment")
 
+    # Guard: ElevenLabs rejects empty/whitespace-only input with HTTP 400
+    # `input_text_empty`. The user simulator occasionally produces a turn
+    # that ElevenLabs sees as empty after THEIR speaker-tag + emoji strip
+    # (e.g. backchannels like "[cough]" or pure emoji turns). We mirror their
+    # strip locally and short-circuit to a silence placeholder so a single
+    # weird turn doesn't tank the whole sim.
+    def _looks_empty_to_elevenlabs(s: str) -> bool:
+        stripped = s
+        # ElevenLabs strips speaker tags `[name]:` and known audio tags
+        stripped = re.sub(r"\[[^\]]{1,32}\]\s*:?", "", stripped)
+        # …and emojis (anything outside BMP printable + JP/EN ASCII)
+        stripped = re.sub(
+            r"[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F900-\U0001F9FF]+",
+            "",
+            stripped,
+        )
+        return not stripped.strip()
+
+    if _looks_empty_to_elevenlabs(text):
+        logger.debug(
+            "ElevenLabs TTS: skipping empty-after-strip input ({!r}) — returning silence",
+            text[:40],
+        )
+        fmt = DEFAULT_ELEVEN_LAB_AUDIO_FORMAT
+        silence_samples = int(fmt.sample_rate * 0.05)  # 50 ms PCM silence
+        return AudioData(
+            data=(b"\x00\x00" * silence_samples),
+            format=deepcopy(fmt),
+        )
+
     is_v3 = "v3" in config.model_id.lower()
 
     # Replace [pause] with ellipsis for non-v3 models (v3 supports [pause] natively)
@@ -98,7 +131,21 @@ def tts_elevenlabs(
 
         audio_bytes = b"".join(audio)
     except Exception as e:
-        # Log at debug level - the retry wrapper (tts_retry) will log with attempt info
+        # Defensive: ElevenLabs occasionally returns 400 input_text_empty even
+        # when our pre-filter passed (rare backchannels with characters we
+        # didn't strip). Don't tank the whole sim on these — fall through to
+        # the silence placeholder. Other errors keep their normal retry path.
+        if "input_text_empty" in str(e) or "validation_error" in str(e).lower():
+            logger.warning(
+                f"ElevenLabs TTS rejected input as empty after strip "
+                f"(text={text_preview!r}) — returning silence placeholder"
+            )
+            fmt = DEFAULT_ELEVEN_LAB_AUDIO_FORMAT
+            silence_samples = int(fmt.sample_rate * 0.05)
+            return AudioData(
+                data=(b"\x00\x00" * silence_samples),
+                format=deepcopy(fmt),
+            )
         logger.debug(
             f"ElevenLabs TTS API call failed: {type(e).__name__}: {e} "
             f"(text='{text_preview}', voice_id={voice_id}, model={config.model_id})"
@@ -111,6 +158,17 @@ def tts_elevenlabs(
     if len(audio_bytes) == 0:
         logger.error(f"ElevenLabs TTS returned empty audio for text: '{text}'")
         raise ValueError(f"ElevenLabs TTS returned empty audio for text: '{text}'")
+
+    # Append a tail of PCM silence so downstream VAD (e.g. maestra's
+    # gpt-realtime server_vad with silence_duration_ms≈500) reliably detects
+    # end-of-utterance instead of waiting for tau2's idle silence frames.
+    # Env override: TAU2_ELEVENLABS_TRAILING_SILENCE_MS (default 600).
+    trailing_ms = int(os.getenv("TAU2_ELEVENLABS_TRAILING_SILENCE_MS", "600"))
+    if trailing_ms > 0:
+        fmt = config.output_audio_format
+        silence_samples = int(fmt.sample_rate * trailing_ms / 1000)
+        # PCM_S16LE silence = 0x00 bytes; 2 bytes per sample, mono.
+        audio_bytes = audio_bytes + (b"\x00\x00" * silence_samples)
 
     audio_data = AudioData(
         data=audio_bytes,

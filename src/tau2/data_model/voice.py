@@ -44,7 +44,16 @@ class TranscriptionConfig(BaseModel):
     """Configuration for audio transcription."""
 
     model: TranscriptionModel = Field(default=DEFAULT_TRANSCRIPTION_MODEL)
-    language: Optional[str] = Field(default=None)
+    # Default Whisper language. Override via `TAU2_TRANSCRIPTION_LANGUAGE` env
+    # var. Empty string falls back to auto-detect. Maestra-bench defaults to
+    # Japanese ("ja") because the seeded agent under test speaks Japanese; on
+    # short telephony-quality clips Whisper's auto-detection is unreliable.
+    language: Optional[str] = Field(
+        default_factory=lambda: __import__("os").getenv(
+            "TAU2_TRANSCRIPTION_LANGUAGE", "ja"
+        )
+        or None
+    )
     deepgram_punctuate: bool = Field(default=True)
     deepgram_smart_format: bool = Field(default=False)
     openai_silence_duration_ms: int = Field(default=1000)

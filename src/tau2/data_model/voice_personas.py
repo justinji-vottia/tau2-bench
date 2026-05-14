@@ -184,7 +184,17 @@ def warn_if_non_official_voices() -> None:
 
 
 def get_elevenlabs_voice_id(persona_name: str) -> str:
-    """Get the ElevenLabs voice ID for a persona."""
+    """Get the ElevenLabs voice ID for a persona.
+
+    Honours these env-var overrides (in order):
+      1. ``TAU2_VOICE_ID_ALL`` — single voice for every persona (useful when
+         you don't own Sierra's internal voices but want SOMETHING to play).
+      2. ``TAU2_VOICE_ID_<PERSONA_NAME_UPPER>`` — per-persona override.
+      3. The persona's hard-coded default (Sierra's internal voice).
+    """
+    global_override = os.environ.get("TAU2_VOICE_ID_ALL")
+    if global_override:
+        return global_override
     if persona_name not in ALL_PERSONAS:
         raise KeyError(
             f"Unknown persona: '{persona_name}'. Available: {ALL_PERSONA_NAMES}"

@@ -29,7 +29,7 @@ DEFAULT_LLM_ENV_INTERFACE = "gpt-4.1-2025-04-14"
 DEFAULT_LLM_ENV_INTERFACE_TEMPERATURE = 0.0
 DEFAULT_LLM_ENV_INTERFACE_ARGS = {"temperature": DEFAULT_LLM_ENV_INTERFACE_TEMPERATURE}
 
-DEFAULT_LLM_EVAL_USER_SIMULATOR = "claude-opus-4-5"
+DEFAULT_LLM_EVAL_USER_SIMULATOR = "gpt-4o"
 
 # LLM debug logging
 DEFAULT_LLM_LOG_MODE = "latest"  # Options: "all", "latest"
@@ -198,6 +198,9 @@ DEFAULT_AUDIO_NATIVE_MODELS = {
     "nova": DEFAULT_NOVA_MODEL,
     "qwen": DEFAULT_QWEN_MODEL,
     "livekit": "dummy",
+    # Maestra: real model lives in the maestra DB row addressed by env. We
+    # keep an informational tag here for logging/telemetry only.
+    "maestra": "maestra-db-resident",
 }
 
 DEFAULT_AUDIO_NATIVE_REASONING_EFFORT: dict[str, str | None] = {
@@ -207,6 +210,7 @@ DEFAULT_AUDIO_NATIVE_REASONING_EFFORT: dict[str, str | None] = {
     "nova": None,
     "qwen": None,
     "livekit": None,
+    "maestra": None,
 }
 
 AUDIO_NATIVE_PROVIDER_TYPES = {
@@ -216,6 +220,7 @@ AUDIO_NATIVE_PROVIDER_TYPES = {
     "nova": "audio_native",
     "qwen": "audio_native",
     "livekit": "cascaded",
+    "maestra": "audio_native",
 }
 
 # =============================================================================

@@ -347,6 +347,22 @@ try:
     registry.register_domain(knowledge_domain_get_environment, "banking_knowledge")
     registry.register_tasks(knowledge_domain_get_tasks, "banking_knowledge")
 
+    # ------------------------------------------------------------------
+    # External domain: weather_jp (Vottia maestra Japanese weather agent).
+    # Imported here (inside the try block) so a missing maestra_bench install
+    # doesn't break vanilla tau2 usage — it logs and skips instead.
+    # ------------------------------------------------------------------
+    try:
+        from maestra_bench.domains.weather_jp.environment import (
+            get_environment as weather_jp_get_environment,
+            get_tasks as weather_jp_get_tasks,
+        )
+
+        registry.register_domain(weather_jp_get_environment, "weather_jp")
+        registry.register_tasks(weather_jp_get_tasks, "weather_jp")
+    except ImportError as exc:
+        logger.debug(f"weather_jp domain not available (maestra_bench missing?): {exc}")
+
     logger.debug(
         f"Default components registered successfully. Registry info: {json.dumps(registry.get_info().model_dump(), indent=2)}"
     )

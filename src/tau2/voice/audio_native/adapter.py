@@ -326,7 +326,8 @@ class DiscreteTimeAdapter(ABC):
 # ---------------------------------------------------------------------------
 
 # Providers where the model is determined by the endpoint, not a parameter
-_PROVIDERS_WITH_ENDPOINT_DETERMINED_MODEL = ("xai",)
+# (maestra: model is determined by the DB-resident agent record).
+_PROVIDERS_WITH_ENDPOINT_DETERMINED_MODEL = ("xai", "maestra")
 
 
 def create_adapter(
@@ -450,6 +451,21 @@ def create_adapter(
             tick_duration_ms=tick_duration_ms,
             cascaded_config=config,
             send_audio_instant=send_audio_instant,
+            audio_format=audio_format,
+        )
+    elif provider == "maestra":
+        # External provider — bridges to a Vottia maestra voice agent over
+        # Twilio Media Streams. Model id is informational only; the actual
+        # model is whatever the maestra DB row says.
+        from maestra_bench.providers.maestra.discrete_time_adapter import (
+            DiscreteTimeMaestraAdapter,
+        )
+
+        adapter = DiscreteTimeMaestraAdapter(
+            tick_duration_ms=tick_duration_ms,
+            send_audio_instant=send_audio_instant,
+            model=model,
+            reasoning_effort=reasoning_effort,
             audio_format=audio_format,
         )
     else:

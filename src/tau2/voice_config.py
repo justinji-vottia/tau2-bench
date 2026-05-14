@@ -31,7 +31,10 @@ def resolve_burst_noise_paths(filenames: list[str]) -> list[Path]:
 
 # Voice Synthesis & Transcription
 DEFAULT_VOICE_SYNTHESIS_PROVIDER = "elevenlabs"
-DEFAULT_TRANSCRIPTION_MODEL = "nova-3"
+# maestra-bench: default to OpenAI whisper-1 since we don't ship a Deepgram key.
+# nova-3 is Deepgram-only and silently produces empty transcripts when the
+# DEEPGRAM_API_KEY env var is missing. whisper-1 hits the OpenAI HTTP API.
+DEFAULT_TRANSCRIPTION_MODEL = "whisper-1"
 ASSUMED_TURNS_PER_MINUTE = 10
 ELEVENLABS_ENABLE_AUDIO_TAGS = True
 ELEVENLABS_AUDIO_TAGS_PROBABILITY = 0.1
