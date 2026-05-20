@@ -2397,8 +2397,15 @@ class ConsoleDisplay:
 
 class MarkdownDisplay:
     @classmethod
-    def display_actions(cls, actions: List[Action]) -> str:
-        """Display actions in markdown format."""
+    def display_actions(cls, actions: Optional[List[Action]]) -> str:
+        """Display actions in markdown format.
+
+        Returns an empty JSON array for tasks without gold tool-call
+        trajectories (e.g. external-provider domains like maestra where
+        the provider owns tool execution).
+        """
+        if not actions:
+            return "```json\n[]\n```"
         return f"```json\n{json.dumps([action.model_dump() for action in actions], indent=2)}\n```"
 
     @classmethod

@@ -10,7 +10,11 @@ from rich.console import Console
 from rich.progress import Progress
 
 from tau2.data_model.simulation import Results
-from tau2.evaluator.evaluator import EvaluationType, evaluate_simulation
+from tau2.evaluator.evaluator import (
+    CommunicationMode,
+    EvaluationType,
+    evaluate_simulation,
+)
 from tau2.metrics.agent_metrics import compute_metrics
 from tau2.utils.display import ConsoleDisplay
 from tau2.utils.io_utils import expand_paths
@@ -54,12 +58,22 @@ def compute_simulation_rewards(
 
         for simulation in results.simulations:
             task = tasks[simulation.task_id]
+            # Detect full-duplex sims (audio-native, maestra) — their ticks live
+            # on simulation.ticks, messages is None. Without passing the mode
+            # the evaluator defaults to HALF_DUPLEX and dereferences messages.
+            sim_mode_str = getattr(simulation, "mode", None) or ""
+            mode = (
+                CommunicationMode.FULL_DUPLEX
+                if sim_mode_str == "full_duplex"
+                else CommunicationMode.HALF_DUPLEX
+            )
             computed_reward_info = evaluate_simulation(
                 domain=domain,
                 task=task,
                 simulation=simulation,
                 evaluation_type=evaluation_type,
                 solo_mode=solo_mode,
+                mode=mode,
             )
 
             # Update the simulation with new reward info
