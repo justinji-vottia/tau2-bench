@@ -348,9 +348,12 @@ try:
     registry.register_tasks(knowledge_domain_get_tasks, "banking_knowledge")
 
     # ------------------------------------------------------------------
-    # External domain: weather_jp (Vottia maestra Japanese weather agent).
-    # Imported here (inside the try block) so a missing maestra_bench install
-    # doesn't break vanilla tau2 usage — it logs and skips instead.
+    # External domains: maestra-bench (Vottia voice eval harness).
+    # Each domain pins itself to a specific maestra agent in its
+    # get_environment hook (see e.g. weather_jp/environment.py). Adding a
+    # new agent = adding a new domain folder + a register block here.
+    # Imported inside try/except so a missing maestra_bench install doesn't
+    # break vanilla tau2 usage — it logs and skips instead.
     # ------------------------------------------------------------------
     try:
         from maestra_bench.domains.weather_jp.environment import (
@@ -362,6 +365,21 @@ try:
         registry.register_tasks(weather_jp_get_tasks, "weather_jp")
     except ImportError as exc:
         logger.debug(f"weather_jp domain not available (maestra_bench missing?): {exc}")
+
+    try:
+        from maestra_bench.domains.housesupport_aircon.environment import (
+            get_environment as housesupport_aircon_get_environment,
+            get_tasks as housesupport_aircon_get_tasks,
+        )
+
+        registry.register_domain(
+            housesupport_aircon_get_environment, "housesupport_aircon"
+        )
+        registry.register_tasks(housesupport_aircon_get_tasks, "housesupport_aircon")
+    except ImportError as exc:
+        logger.debug(
+            f"housesupport_aircon domain not available (maestra_bench missing?): {exc}"
+        )
 
     logger.debug(
         f"Default components registered successfully. Registry info: {json.dumps(registry.get_info().model_dump(), indent=2)}"

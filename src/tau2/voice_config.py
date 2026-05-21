@@ -1,6 +1,18 @@
 # Copyright Sierra
-"""Voice configuration constants."""
+"""Voice configuration constants.
 
+A few noise/channel knobs can be overridden via env vars at process start
+so the maestra-bench wrapper (scripts/run_bench.sh) can toggle noise
+levels without editing this file:
+
+    TAU2_NOISE_SNR_DB              → NOISE_SNR_DB
+    TAU2_BURST_EVENTS_PER_MIN      → BURST_NOISE_EVENTS_PER_MINUTE
+    TAU2_FRAME_DROP_RATE           → FRAME_DROP_RATE
+
+Unset env vars fall back to the original defaults below.
+"""
+
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -34,7 +46,9 @@ DEFAULT_VOICE_SYNTHESIS_PROVIDER = "elevenlabs"
 # maestra-bench: default to OpenAI whisper-1 since we don't ship a Deepgram key.
 # nova-3 is Deepgram-only and silently produces empty transcripts when the
 # DEEPGRAM_API_KEY env var is missing. whisper-1 hits the OpenAI HTTP API.
-DEFAULT_TRANSCRIPTION_MODEL = "whisper-1"
+# Override via `TAU2_VOICE_TRANSCRIPTION_MODEL` env var
+# (valid values: nova-2 / nova-3 / whisper-1 / gpt-4o-transcribe / gpt-4o-mini-transcribe).
+DEFAULT_TRANSCRIPTION_MODEL = os.getenv("TAU2_VOICE_TRANSCRIPTION_MODEL", "whisper-1")
 ASSUMED_TURNS_PER_MINUTE = 10
 ELEVENLABS_ENABLE_AUDIO_TAGS = True
 ELEVENLABS_AUDIO_TAGS_PROBABILITY = 0.1
@@ -58,7 +72,7 @@ MAX_STEPS = MAX_STEPS_IN_SECONDS // CHUNK_DURATION_IN_SECONDS
 
 # Channel Effects - Frame Drops (Gilbert-Elliott model)
 ENABLE_FRAME_DROPS = True
-FRAME_DROP_RATE = 0.01  # Target loss rate (1%)
+FRAME_DROP_RATE = float(os.getenv("TAU2_FRAME_DROP_RATE", "0.01"))  # Target loss rate (default 1%)
 FRAME_DROP_BURST_DURATION_MS = 100  # Average burst duration in ms
 FRAME_DROP_COUNT = 1
 FRAME_DROP_DURATION_MS = 150  # Duration of each individual frame drop
@@ -86,11 +100,11 @@ CONSTANT_MUFFLE_CUTOFF_FREQ = (
 
 # Source Effects
 ENABLE_BACKGROUND_NOISE = True
-NOISE_SNR_DB = 15.0
+NOISE_SNR_DB = float(os.getenv("TAU2_NOISE_SNR_DB", "15.0"))
 NOISE_SNR_DRIFT_DB = 3.0
 NOISE_VARIATION_SPEED = 0.5
 ENABLE_BURST_NOISE = True
-BURST_NOISE_EVENTS_PER_MINUTE = 1.0
+BURST_NOISE_EVENTS_PER_MINUTE = float(os.getenv("TAU2_BURST_EVENTS_PER_MIN", "1.0"))
 BURST_SNR_RANGE_DB = (-5.0, 10.0)  # Sample per burst from this range
 ENABLE_DYNAMIC_MUFFLING = True
 MUFFLE_PROBABILITY = 0.2
