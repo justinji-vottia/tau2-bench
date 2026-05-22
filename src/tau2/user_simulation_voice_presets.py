@@ -69,8 +69,13 @@ BURST_NOISE_DISPLAY_NAMES = {
 ENVIRONMENT_PRESETS = {
     "indoor": {
         "background_noise_files": [
-            "people_talking.wav",
-            "medium_size_room_tv_news_iphone_mic.wav",
+            # maestra-bench: Japanese-language chatter so the agent's VAD /
+            # ASR can't trivially distinguish "this is the user vs background
+            # noise" by language alone. Generated from scripts/gen_jp_chatter.py.
+            # The English `people_talking.wav` and `medium_size_room_tv_news_iphone_mic.wav`
+            # are still in the directory; we just don't list them here for JP
+            # agent runs.
+            "people_talking_jp.wav",
         ],
         "burst_noise_files": [
             "ringing_phone.wav",
@@ -167,8 +172,13 @@ REGULAR_CONFIG = {
 # Keeps: American accents, patient user behavior
 CONTROL_AUDIO_CONFIG = {
     **CONTROL_CONFIG,
-    # Environment - enables noise file selection
-    "environment": "auto",
+    # Environment - enables noise file selection.
+    # maestra-bench: pin to "indoor" so the bg-noise channel uses Japanese
+    # chatter (people_talking_jp.wav). "auto" rolls indoor/outdoor by seed,
+    # which gives non-language street noise half the time — fine acoustically
+    # but worse for evaluating "agent discriminates user speech from
+    # surrounding Japanese chatter."
+    "environment": "indoor",
     # Background noise - enabled
     "enable_background_noise": True,
     # Burst noise - enabled with regular rate
