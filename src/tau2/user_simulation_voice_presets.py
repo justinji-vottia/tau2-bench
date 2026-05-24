@@ -320,6 +320,15 @@ def sample_voice_config(
     persona_name = get_persona_name_by_voice_id(voice_id) if voice_id else None
     if not persona_name:
         persona_names = preset.get("persona_names", CONTROL_PERSONA_NAMES)
+        # maestra-bench (2026-05-24): TAU2_OVERRIDE_PERSONA_POOL 環境変数で
+        # 全 preset の persona_names を強制上書きできるようにする。
+        # 例: TAU2_OVERRIDE_PERSONA_POOL=jp_elderly
+        #     → どの speech-complexity でも jp_elderly persona に固定される
+        # 複数指定する場合はカンマ区切り (e.g. "jp_elderly,jp_hurried")
+        import os as _os
+        override = _os.environ.get("TAU2_OVERRIDE_PERSONA_POOL")
+        if override:
+            persona_names = [n.strip() for n in override.split(",") if n.strip()]
         persona_name = rng.choice(persona_names)
 
     # -------------------------------------------------------------------------
