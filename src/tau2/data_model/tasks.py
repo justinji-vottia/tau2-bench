@@ -113,6 +113,44 @@ class Description(BaseModel):
         return "\n".join(lines)
 
 
+def _parse_compare_op(raw_key: str) -> tuple[str, str]:
+    """compare_args の "key:op" 形式を (clean_key, op) に分解。
+
+    op が無ければ ("key", "eq")。サポート op:
+    - "exists":     非空 (not None / 非 "") なら pass
+    - "not_exists": 一度も書かれていない or 全 call で None/空 なら pass
+                    (任意の call で値が書かれていたら fail)
+    例: "memory.family_relationship:not_exists" → not_exists op
+    """
+    if isinstance(raw_key, str):
+        if raw_key.endswith(":not_exists"):
+            return raw_key[: -len(":not_exists")], "not_exists"
+        if raw_key.endswith(":exists"):
+            return raw_key[: -len(":exists")], "exists"
+    return raw_key, "eq"
+
+
+def _extract_nested(d, path: str, default=None):
+    """dot-path で nested dict から値を取り出す。
+
+    "memory.customer_name" のような path に対応。途中でキー不在なら default。
+    maestra の updateWorkingMemory が
+    `{"memory": {"customer_name": "...", ...}}` という二段構造を取るため、
+    Action.compare_args が nested 比較できるよう導入した拡張 (2026-05-25)。
+    """
+    if not isinstance(path, str) or "." not in path:
+        if isinstance(d, dict):
+            return d.get(path, default)
+        return default
+    cur = d
+    for part in path.split("."):
+        if isinstance(cur, dict) and part in cur:
+            cur = cur[part]
+        else:
+            return default
+    return cur
+
+
 class Action(BaseModel):
     """
     An Agent/User action.
@@ -169,18 +207,75 @@ class Action(BaseModel):
         If the name is not the same, return False.
         If compare_args is None, will check all the arguments.
         Otherwise, will check only the arguments in compare_args.
+
+        compare_args supports two extensions (maestra-bench, 2026-05-25):
+        - **dot-path**: "memory.customer_name" → nested dict 内の field を取り出す
+        - **op suffix**: "memory.customer_name:exists"
+          → 値が non-null かつ 非空文字列なら pass (agent が
+             normalize で表記揺れする字段に有用)
+          サポート op: 無し=等値 / `:exists`=非空チェック
+        dot 無し / op 無し の key は従来通り top-level 等値比較。
         """
         if self.name != tool_call.name:
             return False
         if self.compare_args is None:
-            compare_args = tool_call.arguments.keys()
+            compare_args = list(tool_call.arguments.keys())
         else:
             compare_args = self.compare_args
         if len(compare_args) == 0:
             return True
-        tool_args = {k: v for k, v in tool_call.arguments.items() if k in compare_args}
-        action_args = {k: v for k, v in self.arguments.items() if k in compare_args}
-        return tool_args == action_args
+        _MISSING = object()
+        for raw_key in compare_args:
+            key, op = _parse_compare_op(raw_key)
+            if op == "not_exists":
+                # trajectory レベル制約 — 単一 call では判定不可なので
+                # ここではスキップ。match_trajectory() 側で全 call を走査して判定。
+                continue
+            tool_val = _extract_nested(tool_call.arguments, key, _MISSING)
+            if op == "exists":
+                if tool_val is _MISSING or tool_val is None or tool_val == "":
+                    return False
+            else:  # equality
+                action_val = _extract_nested(self.arguments, key, _MISSING)
+                if tool_val != action_val:
+                    return False
+        return True
+
+    def match_trajectory(self, tool_calls: "list[ToolCall]") -> bool:
+        """Trajectory レベルでこの action が満たされているか判定する。
+
+        - `:not_exists` keys: **全** 同名 tool_call で値が未設定/None/空 でなければ fail
+        - `:exists` / 等値 keys: 少なくとも 1 つの同名 tool_call が全て満たせば pass
+
+        compare_with_tool_call が per-call の per-positive 判定なのに対し、
+        こちらは「ある field が trajectory 内で一度も書かれていない」を判定
+        できる (per-call では他の call の挙動が見えないため不可能)。
+        maestra-bench 拡張 (2026-05-25)。
+        """
+        same_name_calls = [tc for tc in tool_calls if tc.name == self.name]
+
+        if self.compare_args:
+            for raw_key in self.compare_args:
+                key, op = _parse_compare_op(raw_key)
+                if op != "not_exists":
+                    continue
+                for tc in same_name_calls:
+                    val = _extract_nested(tc.arguments, key, None)
+                    if val is not None and val != "":
+                        return False
+
+            has_positive = any(
+                _parse_compare_op(k)[1] != "not_exists" for k in self.compare_args
+            )
+        else:
+            has_positive = True
+
+        if not has_positive:
+            return True
+        for tc in same_name_calls:
+            if self.compare_with_tool_call(tc):
+                return True
+        return False
 
 
 class EnvFunctionCall(BaseModel):

@@ -31,11 +31,9 @@ def _check_actions(
     """
     action_checks = []
     for gold_action in golden_actions:
-        found = False
-        for pred_tool_call in predicted_tool_calls:
-            if gold_action.compare_with_tool_call(pred_tool_call):
-                found = True
-                break
+        # match_trajectory: positive (eq/exists) は per-call、negative
+        # (:not_exists) は trajectory レベルで判定する拡張 (maestra-bench)。
+        found = gold_action.match_trajectory(predicted_tool_calls)
         if found:
             gold_action_reward = 1.0
             gold_action_match = True
