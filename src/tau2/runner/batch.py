@@ -37,7 +37,11 @@ from tau2.data_model.tasks import Task
 from tau2.data_model.voice import SynthesisConfig, VoiceSettings
 from tau2.data_model.voice_personas import warn_if_non_official_voices
 from tau2.evaluator.evaluator import EvaluationType
-from tau2.evaluator.reviewer import check_hallucination, format_hallucination_feedback
+from tau2.evaluator.reviewer import (
+    check_agent_hallucination,
+    check_hallucination,
+    format_hallucination_feedback,
+)
 from tau2.metrics.agent_metrics import compute_metrics
 from tau2.registry import registry
 from tau2.runner.build import _build_env_kwargs, build_orchestrator
@@ -779,6 +783,27 @@ def run_tasks(
                     # so resume matching stays consistent.
                     result.seed = seed
                     replace_fn((trial, task.id, seed), result)
+
+            # Agent hallucination check (maestra-bench, ADR §4.2.2)
+            # Opt-in via env var MAESTRA_BENCH_AGENT_HALLUCINATION_CHECK=true.
+            # Unlike the user-side hallucination check this does NOT gate
+            # re-runs — it's a measurement only, attached to result for
+            # downstream aggregation.
+            if (
+                is_full_duplex
+                and os.environ.get(
+                    "MAESTRA_BENCH_AGENT_HALLUCINATION_CHECK", ""
+                ).lower()
+                in ("1", "true", "yes")
+            ):
+                try:
+                    result.agent_hallucination_check = check_agent_hallucination(
+                        result, task
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Agent hallucination check failed for task {task.id}: {e}"
+                    )
 
             # Mark the final sim as the one used in results
             if save_dir is not None:

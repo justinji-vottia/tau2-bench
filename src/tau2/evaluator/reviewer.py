@@ -36,6 +36,7 @@ from enum import Enum
 from typing import Optional, Union
 
 from tau2.data_model.simulation import (
+    AgentHallucinationCheck,
     AuthenticationClassification,
     HallucinationCheck,
     Review,
@@ -44,6 +45,9 @@ from tau2.data_model.simulation import (
     UserOnlyReview,
 )
 from tau2.data_model.tasks import Task
+from tau2.evaluator.agent_hallucination_reviewer import (
+    FullDuplexAgentHallucinationReviewer,
+)
 from tau2.evaluator.auth_classifier import (
     AuthenticationClassifier,
     FullDuplexAuthenticationClassifier,
@@ -169,6 +173,38 @@ def check_hallucination(
         )
 
     return FullDuplexHallucinationReviewer.review(
+        task=task,
+        full_trajectory=simulation.ticks,
+    )
+
+
+def check_agent_hallucination(
+    simulation: SimulationRun,
+    task: Task,
+) -> AgentHallucinationCheck:
+    """
+    Check a simulation for AGENT hallucinations (maestra-bench, ADR §4.2.2).
+
+    Detects agent utterances that reference / confirm information the user
+    did NOT actually provide — typically caused by STT misrecognition under
+    noise. Full-duplex only.
+
+    Args:
+        simulation: The simulation run to check.
+        task: The task specification.
+
+    Returns:
+        AgentHallucinationCheck with hallucination_rate populated.
+
+    Raises:
+        ValueError: If the simulation is not full-duplex.
+    """
+    if not _is_full_duplex(simulation):
+        raise ValueError(
+            "Agent hallucination check is only supported for full-duplex simulations."
+        )
+
+    return FullDuplexAgentHallucinationReviewer.review(
         task=task,
         full_trajectory=simulation.ticks,
     )

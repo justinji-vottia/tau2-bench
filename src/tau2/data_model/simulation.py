@@ -913,6 +913,65 @@ class HallucinationCheck(BaseModel):
     )
 
 
+class AgentHallucinationError(BaseModel):
+    """
+    Represents an agent hallucination — agent confirming / referencing / responding
+    to information that the user did NOT actually provide (often caused by STT
+    misrecognition in noisy environments).
+
+    maestra-bench 拡張 (2026-05-26)。ADR-0005 §4.2.2 「Hallucinated response rate」
+    の真の意図 (agent 側) を測るための schema。
+    """
+
+    reasoning: str = Field(description="Why this agent utterance is a hallucination.")
+    agent_message: Optional[str] = Field(
+        description="The problematic agent utterance.",
+        default=None,
+    )
+    expected_context: Optional[str] = Field(
+        description="What the user actually said / the expected flow context.",
+        default=None,
+    )
+
+
+class AgentHallucinationCheck(BaseModel):
+    """
+    Result of checking a conversation for agent hallucinations.
+
+    `hallucination_rate` は (誤った agent 発話数 / 総 agent 発話数) で
+    cell 別比較に使える主指標。
+    """
+
+    reasoning: str = Field(
+        description="Step-by-step reasoning before the decision.",
+        default="",
+    )
+    hallucination_found: bool = Field(
+        description="Whether any agent hallucinations were detected.",
+        default=False,
+    )
+    hallucination_rate: float = Field(
+        description="(# hallucinated agent utterances) / (# total agent utterances).",
+        default=0.0,
+    )
+    total_agent_utterances: int = Field(
+        description="Total number of agent utterances analyzed.",
+        default=0,
+    )
+    errors: list[AgentHallucinationError] = Field(
+        description="List of agent hallucinations found.",
+        default_factory=list,
+    )
+    summary: str = Field(
+        description="Brief summary of the agent hallucination check.",
+        default="",
+    )
+    cost: Optional[float] = Field(
+        description="LLM judge cost for this check.",
+        default=None,
+    )
+
+
 class AuthenticationClassification(BaseModel):
     """
     Classification of user authentication outcome in a conversation.
@@ -1302,6 +1361,10 @@ class SimulationRun(BaseModel):
     )
     hallucination_check: Optional[HallucinationCheck] = Field(
         description="Result of the hallucination check for this simulation.",
+        default=None,
+    )
+    agent_hallucination_check: Optional[AgentHallucinationCheck] = Field(
+        description="Result of the AGENT hallucination check (maestra-bench, ADR §4.2.2).",
         default=None,
     )
     provider_session_id: Optional[str] = Field(
