@@ -381,6 +381,23 @@ try:
             f"housesupport_aircon domain not available (maestra_bench missing?): {exc}"
         )
 
+    try:
+        from maestra_bench.domains.sekisui_support_yakan.environment import (
+            get_environment as sekisui_support_yakan_get_environment,
+            get_tasks as sekisui_support_yakan_get_tasks,
+        )
+
+        registry.register_domain(
+            sekisui_support_yakan_get_environment, "sekisui_support_yakan"
+        )
+        registry.register_tasks(
+            sekisui_support_yakan_get_tasks, "sekisui_support_yakan"
+        )
+    except ImportError as exc:
+        logger.debug(
+            f"sekisui_support_yakan domain not available (maestra_bench missing?): {exc}"
+        )
+
     logger.debug(
         f"Default components registered successfully. Registry info: {json.dumps(registry.get_info().model_dump(), indent=2)}"
     )
