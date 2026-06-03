@@ -93,9 +93,50 @@ ENVIRONMENT_PRESETS = {
             "siren.wav",
         ],
     },
+    # ------------------------------------------------------------------
+    # maestra-bench (2026-05-28): VAD validation plan の noise 4 区分用
+    # 環境プリセット。SNR は SPEECH_COMPLEXITY 経由ではなく
+    # `TAU2_NOISE_SNR_DB` 環境変数で run ごとに override する想定。
+    # 各環境は `TAU2_OVERRIDE_ENVIRONMENT` env var で pinning される
+    # (get_sampled_speech_environment 参照)。
+    # ------------------------------------------------------------------
+    "tv_home": {
+        # 非定常ノイズ「TV / 家庭」想定。room の TV ニュース wav を使う
+        # (会話・読み上げが入り混じり、VAD 暴発を誘発しやすい)。
+        "background_noise_files": [
+            "medium_size_room_tv_news_iphone_mic.wav",
+        ],
+        "burst_noise_files": [],  # TV 環境は連続音メイン、burst なし
+    },
+    "babble": {
+        # 「バブル (重)」想定。複数話者の混合発話を SNR=0dB 付近で重ねる
+        # ケース用。people_talking_jp.wav を JP babble として流用する
+        # (plan の CHiME PED 相当の代替)。
+        "background_noise_files": [
+            "people_talking_jp.wav",
+        ],
+        "burst_noise_files": [],
+    },
+    "stationary": {
+        # 定常ノイズ (plan §B「定常 (軽)」想定)。エアコン / 車内ロード相当の
+        # 連続的・周波数特性が安定したノイズ。
+        # 採用ソース: DEMAND OOFFICE_16k (Inria, CC BY-NC 4.0)
+        #   https://zenodo.org/record/1227121
+        #   オープンオフィスの HVAC + 換気音録音。
+        # 取得方法: scripts/import_demand_stationary.py (将来追加予定。
+        #   現状は 1 度きりの手動 import — DEMAND OOFFICE/ch01.wav から
+        #   30s〜70s 区間を切り出して 40s 分のループ素材とした)
+        "background_noise_files": [
+            "air_conditioner.wav",
+        ],
+        "burst_noise_files": [],  # 定常評価は burst 無し
+    },
 }
 
-ENVIRONMENT_NAMES = list(ENVIRONMENT_PRESETS.keys())
+# `auto` 環境ロールでは元の "indoor" / "outdoor" のみ対象にしておく。
+# maestra-bench で追加した "tv_home" / "babble" は TAU2_OVERRIDE_ENVIRONMENT
+# 経由でのみ pinning される (deterministic な seed-based 選択には混入させない)。
+ENVIRONMENT_NAMES = ["indoor", "outdoor"]
 
 # ============================================================================
 # Complexity Preset Definitions
@@ -341,10 +382,21 @@ def sample_voice_config(
     if preset.get("enable_background_noise") or preset.get("enable_burst_noise"):
         # Select environment deterministically based on seed
         env_setting = preset.get("environment")
+        # maestra-bench (2026-05-28): TAU2_OVERRIDE_ENVIRONMENT 環境変数で
+        # preset の environment 設定を強制上書きできるようにする。
+        # 例: TAU2_OVERRIDE_ENVIRONMENT=babble
+        #     → どの speech-complexity でも babble 環境 (ENVIRONMENT_PRESETS
+        #       の该当エントリ) に固定される
+        # VAD 検証 plan の noise 4 区分 (clean / tv_home / babble / stationary)
+        # を 1 つの speech_complexity (control_audio) ベースで切り替える用途。
+        import os as _os
+        env_override = _os.environ.get("TAU2_OVERRIDE_ENVIRONMENT")
+        if env_override and env_override in ENVIRONMENT_PRESETS:
+            env_setting = env_override
         if env_setting == "auto":
             # Deterministic environment selection based on seed
             environment = ENVIRONMENT_NAMES[seed % len(ENVIRONMENT_NAMES)]
-        elif env_setting in ENVIRONMENT_NAMES:
+        elif env_setting in ENVIRONMENT_PRESETS:
             environment = env_setting
 
         if environment:
