@@ -398,6 +398,17 @@ try:
             f"sekisui_support_yakan domain not available (maestra_bench missing?): {exc}"
         )
 
+    try:
+        from maestra_bench.agents.maestra_chat_agent import (
+            create_maestra_chat_agent,
+        )
+
+        registry.register_agent_factory(create_maestra_chat_agent, "maestra_chat")
+    except ImportError as exc:
+        logger.debug(
+            f"maestra_chat agent not available (maestra_bench missing?): {exc}"
+        )
+
     logger.debug(
         f"Default components registered successfully. Registry info: {json.dumps(registry.get_info().model_dump(), indent=2)}"
     )
