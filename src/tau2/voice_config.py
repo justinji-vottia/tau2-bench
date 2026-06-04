@@ -42,7 +42,9 @@ def resolve_burst_noise_paths(filenames: list[str]) -> list[Path]:
 
 
 # Voice Synthesis & Transcription
-DEFAULT_VOICE_SYNTHESIS_PROVIDER = "elevenlabs"
+# Override via TAU2_VOICE_SYNTHESIS_PROVIDER env var
+# (valid values: elevenlabs / openai / aivisspeech).
+DEFAULT_VOICE_SYNTHESIS_PROVIDER = os.getenv("TAU2_VOICE_SYNTHESIS_PROVIDER", "elevenlabs")
 # maestra-bench: default to OpenAI whisper-1 since we don't ship a Deepgram key.
 # nova-3 is Deepgram-only and silently produces empty transcripts when the
 # DEEPGRAM_API_KEY env var is missing. whisper-1 hits the OpenAI HTTP API.

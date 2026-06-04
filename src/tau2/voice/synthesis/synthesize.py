@@ -47,6 +47,10 @@ def synthesize_voice(
         from tau2.voice.utils.openai_tts_utils import tts_openai
 
         audio_data = tts_openai(text=text, config=provider_config)
+    elif provider == "aivisspeech":
+        from tau2.voice.utils.aivisspeech_utils import tts_aivisspeech
+
+        audio_data = tts_aivisspeech(text=text, config=provider_config)
     else:
         raise ValueError(f"Unsupported synthesis provider: {provider}")
 

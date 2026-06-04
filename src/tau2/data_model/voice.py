@@ -118,7 +118,7 @@ ProviderConfig = ElevenLabsTTSConfig
 class SynthesisConfig(BaseModel):
     """Voice synthesis configuration with 3-tier effect taxonomy."""
 
-    provider: str = Field(default="elevenlabs")
+    provider: str = Field(default_factory=lambda: DEFAULT_VOICE_SYNTHESIS_PROVIDER)
     provider_config: Optional[ProviderConfig] = Field(default=ElevenLabsTTSConfig())
     channel_effects_config: ChannelEffectsConfig = Field(
         default_factory=ChannelEffectsConfig
@@ -333,7 +333,7 @@ class VoiceSettings(BaseModel):
         no_audio_tags: bool = not ELEVENLABS_ENABLE_AUDIO_TAGS,
     ) -> "VoiceSettings":
         """Create a VoiceSettings instance from CLI arguments."""
-        if voice_synthesis_provider != "elevenlabs":
+        if voice_synthesis_provider not in ("elevenlabs", "openai", "aivisspeech"):
             raise ValueError(
                 f"Unsupported voice synthesis provider: {voice_synthesis_provider}"
             )
