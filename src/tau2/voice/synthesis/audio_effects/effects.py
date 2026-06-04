@@ -69,6 +69,14 @@ class StreamingTelephonyConverter:
         if not audio.format.is_pcm16:
             raise ValueError(f"Expected PCM_S16LE input, got {audio.format.encoding}")
 
+        # Trust the chunk's declared sample_rate. If it differs from the rate
+        # the resample state was built for (e.g. constructor default was 16 kHz
+        # but the TTS provider returned 24 kHz / 44.1 kHz), reset state so
+        # `audioop.ratecv` doesn't time-stretch the audio.
+        if audio.format.sample_rate != self.input_sample_rate:
+            self.input_sample_rate = audio.format.sample_rate
+            self.resample_state = None
+
         # Resample to 8kHz with state preservation
         resampled_bytes, self.resample_state = audioop.ratecv(
             audio.data,
