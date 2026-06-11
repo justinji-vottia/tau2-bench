@@ -69,6 +69,18 @@ class StreamingTelephonyConverter:
         if not audio.format.is_pcm16:
             raise ValueError(f"Expected PCM_S16LE input, got {audio.format.encoding}")
 
+        # Trust the chunk's declared sample_rate. Without this, every chunk
+        # is resampled as if it were the constructor-time default (16 kHz),
+        # so 24 kHz / 44.1 kHz TTS providers get time-stretched ~1.5x /
+        # ~2.76x slower — making the downstream STT mishear fixed phrases
+        # (e.g. "東京" → "広島"/"カイロ") and dropping NL_ASSERTION rewards.
+        # Reset the resample state on a rate change so audioop.ratecv
+        # doesn't carry interpolation state across a rate boundary.
+        # See justinji-vottia/tau2-bench#1.
+        if audio.format.sample_rate != self.input_sample_rate:
+            self.input_sample_rate = audio.format.sample_rate
+            self.resample_state = None
+
         # Resample to 8kHz with state preservation
         resampled_bytes, self.resample_state = audioop.ratecv(
             audio.data,
