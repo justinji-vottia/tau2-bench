@@ -36,7 +36,14 @@ except ImportError:
 # ============================================================================
 
 TranscriptionModel = Literal[
-    "nova-2", "nova-3", "whisper-1", "gpt-4o-transcribe", "gpt-4o-mini-transcribe"
+    "nova-2",
+    "nova-3",
+    "whisper-1",
+    "gpt-4o-transcribe",
+    "gpt-4o-mini-transcribe",
+    # AWS Bedrock — Mistral Voxtral audio-understanding LLMs (audio in → text out).
+    "mistral.voxtral-small-24b-2507",
+    "mistral.voxtral-mini-3b-2507",
 ]
 
 

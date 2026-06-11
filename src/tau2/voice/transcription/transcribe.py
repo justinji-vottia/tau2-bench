@@ -4,6 +4,7 @@ import io
 import json
 import os
 import wave
+from typing import Optional
 
 import requests
 import websockets
@@ -45,6 +46,12 @@ def transcribe_audio(
 
         elif config.model in ["gpt-4o-transcribe", "gpt-4o-mini-transcribe"]:
             return asyncio.run(transcribe_gpt4o_realtime(pcm_audio_data, config))
+
+        elif config.model in [
+            "mistral.voxtral-small-24b-2507",
+            "mistral.voxtral-mini-3b-2507",
+        ]:
+            return transcribe_voxtral_bedrock(pcm_audio_data, config)
 
         else:
             return TranscriptionResult(
@@ -268,4 +275,94 @@ async def transcribe_gpt4o_realtime(
     except Exception as e:
         return TranscriptionResult(
             transcript="", error=f"OpenAI Realtime transcription failed: {str(e)}"
+        )
+
+
+# ============================================================================
+# Mistral Voxtral on AWS Bedrock — audio-understanding LLM (audio → text).
+# ============================================================================
+
+
+def _voxtral_prompt(language: Optional[str]) -> str:
+    base = "Transcribe the user's speech verbatim. Output the transcript only — no prefixes, no quotes, no commentary."
+    if language:
+        base += f" The audio is in {language}."
+    return base
+
+
+def transcribe_voxtral_bedrock(
+    audio_data: AudioData, config: TranscriptionConfig
+) -> TranscriptionResult:
+    """Transcribe audio via Mistral Voxtral on AWS Bedrock.
+
+    Both the 24B Small and 3B Mini variants accept an `input_audio` content
+    block in the Mistral chat-completions schema. We send the PCM16 24kHz
+    audio (which `_convert_audio_to_pcm16_mono_24000` produced) wrapped in
+    a wav container so Bedrock parses the format header.
+    """
+    import boto3
+    from botocore.exceptions import ClientError
+
+    region = os.environ.get("AWS_REGION_NAME") or os.environ.get(
+        "AWS_REGION", "ap-northeast-1"
+    )
+
+    # Wrap raw PCM16 mono 24kHz in a wav container that Voxtral can parse.
+    wav_buf = io.BytesIO()
+    with wave.open(wav_buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(audio_data.format.sample_rate)
+        wf.writeframes(audio_data.data)
+    wav_bytes = wav_buf.getvalue()
+    audio_b64 = base64.b64encode(wav_bytes).decode("ascii")
+
+    body = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_audio",
+                        "input_audio": {"data": audio_b64, "format": "wav"},
+                    },
+                    {"type": "text", "text": _voxtral_prompt(config.language)},
+                ],
+            }
+        ],
+        "max_tokens": 512,
+        "temperature": 0.0,
+    }
+
+    try:
+        client = boto3.client("bedrock-runtime", region_name=region)
+        resp = client.invoke_model(
+            modelId=config.model,
+            body=json.dumps(body),
+            contentType="application/json",
+            accept="application/json",
+        )
+        payload = json.loads(resp["body"].read())
+        choices = payload.get("choices") or []
+        if not choices:
+            return TranscriptionResult(
+                transcript="", error=f"Voxtral returned no choices: {payload}"
+            )
+        msg = choices[0].get("message") or {}
+        content = msg.get("content")
+        if isinstance(content, list):
+            transcript = "".join(
+                p.get("text", "") for p in content if isinstance(p, dict)
+            )
+        else:
+            transcript = content or ""
+        return TranscriptionResult(transcript=transcript.strip())
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "ClientError")
+        return TranscriptionResult(
+            transcript="", error=f"Voxtral Bedrock {code}: {e}"
+        )
+    except Exception as e:
+        return TranscriptionResult(
+            transcript="", error=f"Voxtral Bedrock transcription failed: {str(e)}"
         )
