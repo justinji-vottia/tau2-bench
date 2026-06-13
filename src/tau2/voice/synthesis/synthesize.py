@@ -38,6 +38,23 @@ def synthesize_voice(
     provider_config: ProviderConfig,
 ) -> AudioData:
     """Synthesize voice from text using the specified configuration."""
+    # Empty / whitespace-only text must never reach a TTS provider: OpenAI TTS
+    # rejects it with `400 invalid_request_error: 'input' empty string`, which
+    # crashes the whole run as an infrastructure_error. The user simulator can
+    # legitimately emit a near-empty / silent turn (waiting), so treat that as a
+    # tick of silence instead of a fatal call.
+    if not text or not text.strip():
+        from tau2.data_model.audio import AudioEncoding, AudioFormat
+
+        return AudioData(
+            data=b"\x00\x00" * 240,  # 10 ms of PCM16 silence @ 24 kHz mono
+            format=AudioFormat(
+                encoding=AudioEncoding.PCM_S16LE,
+                sample_rate=24000,
+                channels=1,
+            ),
+        )
+
     provider = _provider_with_fallback(provider)
 
     if provider == "elevenlabs":

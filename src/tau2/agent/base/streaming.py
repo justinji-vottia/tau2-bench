@@ -594,7 +594,7 @@ def _create_silence_annotation(
     duration_seconds = duration_ticks * tick_duration_seconds
     return SystemMessage(
         role="system",
-        content=f"[Both parties silent for {duration_seconds:.1f} seconds]",
+        content=f"[双方が約 {duration_seconds:.1f} 秒沈黙しています。応答は必ず日本語で。状況説明やト書きは書かず、実際に口に出すセリフだけを返すこと。]",
     )
 
 

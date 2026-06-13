@@ -399,6 +399,19 @@ try:
         )
 
     try:
+        from maestra_bench.domains.a2a_handoff.environment import (
+            get_environment as a2a_handoff_get_environment,
+            get_tasks as a2a_handoff_get_tasks,
+        )
+
+        registry.register_domain(a2a_handoff_get_environment, "a2a_handoff")
+        registry.register_tasks(a2a_handoff_get_tasks, "a2a_handoff")
+    except ImportError as exc:
+        logger.debug(
+            f"a2a_handoff domain not available (maestra_bench missing?): {exc}"
+        )
+
+    try:
         from maestra_bench.agents.maestra_chat_agent import (
             create_maestra_chat_agent,
         )

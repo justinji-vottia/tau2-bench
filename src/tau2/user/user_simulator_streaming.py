@@ -1258,7 +1258,17 @@ class VoiceStreamingUserSimulator(
         # Add a role identity reminder as a system message to help the LLM stay in character
         role_reminder = SystemMessage(
             role="system",
-            content="REMINDER: You are the CUSTOMER calling for help. Respond as the customer would - with questions, requests, or information about your issue. Do NOT respond as the customer service agent.",
+            content=(
+                "リマインド: あなたは、製品が壊れて困り、早く直したくて電話をかけてきた一般のお客様です。"
+                "電話の相手（受付の担当者）が応対してくれるので、あなたは自分の状況や困りごとを素直に話し、相手の質問に答えます。"
+                "話し方の例:「もしもし、すみません、買ったばかりのが壊れちゃって…」"
+                "「電源は入るんですけど、画面が映らなくて困ってて」"
+                "「あ、はい、型番ですか？ えっと…」。"
+                "相手が挨拶・確認・案内をしてくれるのを待ち、聞かれたことに自分の言葉で答えてください。"
+                "これは2人の電話です。あなたが返すのは『今このタイミングであなた（お客様）が口にする一言』だけ。"
+                "一人芝居をしないこと——受付担当のセリフまであなたが演じて書いてはいけません。相手の発言は相手が話します。"
+                "応答は必ず日本語で、実際に口に出すセリフだけを返す（状況説明やト書きは書かない）。"
+            ),
         )
         messages = messages + [role_reminder]
 

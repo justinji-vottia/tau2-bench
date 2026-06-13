@@ -69,6 +69,11 @@ else:
     litellm.success_callback = []
 
 litellm.drop_params = True
+# Bedrock rejects a request whose messages are all `system` ("requires at least
+# one non-system message"). The user-simulator's opening turn is system-only, so
+# let litellm inject a placeholder user message for providers that need it
+# (OpenAI tolerates system-only; Bedrock does not). No-op for OpenAI models.
+litellm.modify_params = True
 
 warnings.filterwarnings(
     "ignore",
