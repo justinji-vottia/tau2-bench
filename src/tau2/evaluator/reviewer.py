@@ -35,6 +35,7 @@ Usage:
 from enum import Enum
 from typing import Optional, Union
 
+from tau2.config import DEFAULT_LLM_EVAL_USER_SIMULATOR
 from tau2.data_model.simulation import (
     AgentHallucinationCheck,
     AuthenticationClassification,
@@ -82,6 +83,7 @@ def review_simulation(
     user_info: UserInfo,
     policy: Optional[str] = None,
     interruption_enabled: bool = False,
+    review_model: str = DEFAULT_LLM_EVAL_USER_SIMULATOR,
 ) -> tuple[Union[Review, UserOnlyReview], Optional[AuthenticationClassification]]:
     """
     Review a single simulation for conversation errors.
@@ -93,6 +95,7 @@ def review_simulation(
         user_info: User info containing simulation guidelines.
         policy: The policy the agent must follow (required for FULL mode).
         interruption_enabled: Whether interruption was enabled (for full-duplex).
+        review_model: LLM model to use for review and auth classification.
 
     Returns:
         Tuple of (review_result, auth_classification).
@@ -112,9 +115,11 @@ def review_simulation(
                 full_trajectory=simulation.ticks,
                 policy=policy,
                 interruption_enabled=interruption_enabled,
+                review_model=review_model,
             )
             auth_classification = FullDuplexAuthenticationClassifier.classify(
                 ticks=simulation.ticks,
+                model=review_model,
             )
         else:
             review = ConversationReviewer.review(
@@ -122,9 +127,11 @@ def review_simulation(
                 task=task,
                 full_trajectory=simulation.messages,
                 policy=policy,
+                review_model=review_model,
             )
             auth_classification = AuthenticationClassifier.classify(
                 messages=simulation.messages,
+                model=review_model,
             )
         return review, auth_classification
 
@@ -136,12 +143,14 @@ def review_simulation(
                 task=task,
                 full_trajectory=simulation.ticks,
                 interruption_enabled=interruption_enabled,
+                review_model=review_model,
             )
         else:
             review = UserOnlyReviewer.review(
                 user_info=user_info,
                 task=task,
                 full_trajectory=simulation.messages,
+                review_model=review_model,
             )
         return review, None
 
