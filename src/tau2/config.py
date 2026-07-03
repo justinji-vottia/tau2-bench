@@ -1,3 +1,5 @@
+import os
+
 # =============================================================================
 # SIMULATION DEFAULTS (overridable via CLI)
 # =============================================================================
@@ -21,7 +23,8 @@ DEFAULT_LLM_TEMPERATURE_USER = 0.0
 DEFAULT_LLM_ARGS_AGENT = {"temperature": DEFAULT_LLM_TEMPERATURE_AGENT}
 DEFAULT_LLM_ARGS_USER = {"temperature": DEFAULT_LLM_TEMPERATURE_USER}
 
-DEFAULT_LLM_NL_ASSERTIONS = "gpt-5-mini"
+# maestra-bench: env で上書き可 (bench UI の model settings が注入する)
+DEFAULT_LLM_NL_ASSERTIONS = os.getenv("TAU2_LLM_NL_ASSERTIONS", "gpt-5-mini")
 DEFAULT_LLM_NL_ASSERTIONS_TEMPERATURE = 0.0
 DEFAULT_LLM_NL_ASSERTIONS_ARGS = {"temperature": DEFAULT_LLM_NL_ASSERTIONS_TEMPERATURE}
 
@@ -32,7 +35,8 @@ DEFAULT_LLM_ENV_INTERFACE_ARGS = {"temperature": DEFAULT_LLM_ENV_INTERFACE_TEMPE
 # maestra-bench (2026-05-26): gpt-4o → gpt-5-mini に統一
 # 全 judge を gpt-5-mini に揃え、評価軸間の一貫性を確保 +
 # GPT-5 系の hallucination detection 性能向上を活用 + コスト ~1/10
-DEFAULT_LLM_EVAL_USER_SIMULATOR = "gpt-5-mini"
+# env で上書き可 (bench UI の model settings が注入する)
+DEFAULT_LLM_EVAL_USER_SIMULATOR = os.getenv("TAU2_LLM_EVAL_USER_SIMULATOR", "gpt-5-mini")
 
 # LLM debug logging
 DEFAULT_LLM_LOG_MODE = "latest"  # Options: "all", "latest"
@@ -93,7 +97,8 @@ DEFAULT_TEXT_STREAMING_CONFIG = {
 # VOICE USER SIMULATOR (fixed versioning + overridable model)
 # =============================================================================
 VOICE_USER_SIMULATOR_VERSION = "v1.0"  # fixed, bump on changes
-VOICE_USER_SIMULATOR_DECISION_MODEL = "gpt-4.1"  # overridable
+# maestra-bench: env で上書き可 (bench UI の model settings が注入する)
+VOICE_USER_SIMULATOR_DECISION_MODEL = os.getenv("TAU2_VOICE_DECISION_MODEL", "gpt-4.1")  # overridable
 DEFAULT_SPEECH_COMPLEXITY = "regular"  # overridable: "control", "regular"
 
 # =============================================================================
