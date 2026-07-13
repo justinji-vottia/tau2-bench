@@ -411,6 +411,23 @@ try:
             f"a2a_handoff domain not available (maestra_bench missing?): {exc}"
         )
 
+    # bench_dynamic: one domain serving ANY saved task set. The target set is
+    # chosen at run time via the MAESTRA_BENCH_TASK_SET_ID env var (get_tasks /
+    # get_environment read the tasks + agent binding from the bench schema), so
+    # new agents' task sets need no new domain registration here.
+    try:
+        from maestra_bench.domains.bench_dynamic.environment import (
+            get_environment as bench_dynamic_get_environment,
+            get_tasks as bench_dynamic_get_tasks,
+        )
+
+        registry.register_domain(bench_dynamic_get_environment, "bench_dynamic")
+        registry.register_tasks(bench_dynamic_get_tasks, "bench_dynamic")
+    except ImportError as exc:
+        logger.debug(
+            f"bench_dynamic domain not available (maestra_bench missing?): {exc}"
+        )
+
     try:
         from maestra_bench.agents.maestra_chat_agent import (
             create_maestra_chat_agent,
