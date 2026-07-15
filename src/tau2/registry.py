@@ -348,69 +348,12 @@ try:
     registry.register_tasks(knowledge_domain_get_tasks, "banking_knowledge")
 
     # ------------------------------------------------------------------
-    # External domains: maestra-bench (Vottia voice eval harness).
-    # Each domain pins itself to a specific maestra agent in its
-    # get_environment hook (see e.g. weather_jp/environment.py). Adding a
-    # new agent = adding a new domain folder + a register block here.
-    # Imported inside try/except so a missing maestra_bench install doesn't
-    # break vanilla tau2 usage — it logs and skips instead.
+    # External domain: maestra-bench (Vottia voice eval harness).
+    # De-preset'ed: the static per-agent domains (weather_jp etc.) are gone —
+    # bench_dynamic serves every DB-saved task set. Imported inside
+    # try/except so a missing maestra_bench install doesn't break vanilla
+    # tau2 usage — it logs and skips instead.
     # ------------------------------------------------------------------
-    try:
-        from maestra_bench.domains.weather_jp.environment import (
-            get_environment as weather_jp_get_environment,
-            get_tasks as weather_jp_get_tasks,
-        )
-
-        registry.register_domain(weather_jp_get_environment, "weather_jp")
-        registry.register_tasks(weather_jp_get_tasks, "weather_jp")
-    except ImportError as exc:
-        logger.debug(f"weather_jp domain not available (maestra_bench missing?): {exc}")
-
-    try:
-        from maestra_bench.domains.housesupport_aircon.environment import (
-            get_environment as housesupport_aircon_get_environment,
-            get_tasks as housesupport_aircon_get_tasks,
-        )
-
-        registry.register_domain(
-            housesupport_aircon_get_environment, "housesupport_aircon"
-        )
-        registry.register_tasks(housesupport_aircon_get_tasks, "housesupport_aircon")
-    except ImportError as exc:
-        logger.debug(
-            f"housesupport_aircon domain not available (maestra_bench missing?): {exc}"
-        )
-
-    try:
-        from maestra_bench.domains.sekisui_support_yakan.environment import (
-            get_environment as sekisui_support_yakan_get_environment,
-            get_tasks as sekisui_support_yakan_get_tasks,
-        )
-
-        registry.register_domain(
-            sekisui_support_yakan_get_environment, "sekisui_support_yakan"
-        )
-        registry.register_tasks(
-            sekisui_support_yakan_get_tasks, "sekisui_support_yakan"
-        )
-    except ImportError as exc:
-        logger.debug(
-            f"sekisui_support_yakan domain not available (maestra_bench missing?): {exc}"
-        )
-
-    try:
-        from maestra_bench.domains.a2a_handoff.environment import (
-            get_environment as a2a_handoff_get_environment,
-            get_tasks as a2a_handoff_get_tasks,
-        )
-
-        registry.register_domain(a2a_handoff_get_environment, "a2a_handoff")
-        registry.register_tasks(a2a_handoff_get_tasks, "a2a_handoff")
-    except ImportError as exc:
-        logger.debug(
-            f"a2a_handoff domain not available (maestra_bench missing?): {exc}"
-        )
-
     # bench_dynamic: one domain serving ANY saved task set. The target set is
     # chosen at run time via the MAESTRA_BENCH_TASK_SET_ID env var (get_tasks /
     # get_environment read the tasks + agent binding from the bench schema), so
